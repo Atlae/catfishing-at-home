@@ -81,27 +81,30 @@ def get_categories(page_title: str) -> list[str]:
         headers={"User-Agent": os.getenv("USER_AGENT")}
     )
     data = json.loads(response.text)
-    pages = data["query"]["pages"]
     category_titles = []
-    for page in pages.values():
-        categories = page.get("categories", [])
-        for category in categories:
-            print(page_title, category["title"], (closeness := fuzz.partial_ratio(page_title.lower(), category["title"].lower())))
-            if closeness < 85:
-                category_titles.append(category["title"][len("Category:"):])
-    return category_titles
+    try:
+        pages = data["query"]["pages"]
+        for page in pages.values():
+            categories = page.get("categories", [])
+            for category in categories:
+                print(page_title, category["title"], (closeness := fuzz.partial_ratio(page_title.lower(), category["title"].lower())))
+                if closeness < 85:
+                    category_titles.append(category["title"][len("Category:"):])
+    except KeyError: pass # should probably add some logging here
+    finally: return category_titles
 
 def get_thumbnail(page_title: str) -> str | None:
     response = requests.get(
-        f"https://en.wikipedia.org/w/api.php?action=query&titles={page_title}&prop=pageimages&format=json&pithumbsize=2000",
+        f"https://en.wikipedia.org/w/api.php?action=query&titles={page_title}&prop=pageimages&format=json&pithumbsize=500",
         headers={"User-Agent": os.getenv("USER_AGENT")}
     )
     data = json.loads(response.text)
-    pages = data["query"]["pages"]
-    for page in pages.values():
-        if "thumbnail" in page:
-            return page["thumbnail"]["source"]
-    return None
+    try:
+        pages = data["query"]["pages"]
+        for page in pages.values():
+            if "thumbnail" in page:
+                return page["thumbnail"]["source"]
+    finally: return None
 
 def get_condensed_summary(page_title: str) -> str:
     wiki_wiki = wikipediaapi.Wikipedia(os.getenv("USER_AGENT"))
